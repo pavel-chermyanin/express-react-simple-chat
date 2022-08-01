@@ -15,15 +15,23 @@ function App() {
     messages: [],
   })
 
+  // при клике на button
   const onLogin = async (obj) => {
+    // установить новый state
     dispatch({
       type: 'JOINED',
       payload: obj
     })
-    // будем отправлять сокеты на бэк-сокеты
+    // будем отправлять socket событие на бэк
     socket.emit('ROOM:JOIN', obj)
-    const {data} = await axios.get(`/rooms/${obj.roomId}`)
-    setUsers(data.users)
+    // отправляем запрос на роут
+    // вернет объект с полями users и messages
+    // если такой комнаты нет, поля будут пустыми массивами
+    const { data } = await axios.get(`/rooms/${obj.roomId}`)
+    dispatch({
+      type: 'SET_DATA',
+      payload: data
+    })
   }
 
   const setUsers = (users) => {
@@ -33,20 +41,32 @@ function App() {
     })
   }
 
+  const addMessage = (message) => {
+    dispatch({
+      type: 'NEW_MESSAGE',
+      payload: message
+    })
+  }
+
+  /// если придет socket событие ROOM:SET_USERS
+  /// отправить dispatch setUsers
+  /// установит payload в поле users
   React.useEffect(() => {
     socket.on('ROOM:SET_USERS', setUsers)
+    // когда с бэка придет новое сообщение
+    // установить payload в поле messages
+    socket.on('ROOM:NEW_MESSAGE', addMessage)
   }, [])
 
   return (
     <div className="container mx-auto h-screen">
       {
-        !state.joined 
-        ? <JoinBlock onLogin={onLogin} />
-          : <Chat {...state}/>
+        !state.joined
+          ? <JoinBlock onLogin={onLogin} />
+          : <Chat {...state} onAddMessage={addMessage} />
       }
     </div>
   );
 }
-window.socket = socket
 
 export default App;

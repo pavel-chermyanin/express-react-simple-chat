@@ -12,10 +12,16 @@ export default (state, action) => {
                 ...state,
                 users: action.payload
             }
-        case 'SET_MESSAGES':
+        case 'SET_DATA':
             return {
                 ...state,
-                messages: action.payload
+                users: action.payload.users,
+                messages: action.payload.messages,
+            }
+        case 'NEW_MESSAGE':
+            return {
+                ...state,
+                messages: [...state.messages, action.payload]
             }
     
         default:

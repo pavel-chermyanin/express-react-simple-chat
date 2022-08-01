@@ -1,12 +1,12 @@
 import axios from 'axios'
-import React from 'react'
-import socket from '../socket'
+import React, { useRef } from 'react'
 
 
 export const JoinBlock = ({ onLogin }) => {
     const [roomId, setRoomID] = React.useState('')
     const [username, setUsername] = React.useState('')
     const [isLoading, setIsLoading] = React.useState(false)
+    const roomTextRef = useRef()
 
     const onEnter = async () => {
         if (!roomId || !username) {
@@ -21,9 +21,27 @@ export const JoinBlock = ({ onLogin }) => {
 
         onLogin(obj)    
     }
+
+    const submitForm = (e) => {
+        if (e.code === 'Enter') {
+            onEnter()
+        }
+    }
+
+    React.useEffect(() => {
+        window.addEventListener('keydown', submitForm)
+    
+      return () => {
+          window.removeEventListener('keydown', submitForm)
+      }
+    }, [])
+
+
+    
     return (
         <div className="max-w-[300px] mx-auto h-full flex flex-col justify-center">
             <input
+                ref={roomTextRef}
                 onChange={e => setRoomID(e.target.value)}
                 value={roomId}
                 placeholder='Room ID'

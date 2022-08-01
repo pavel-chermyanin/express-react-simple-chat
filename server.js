@@ -15,18 +15,28 @@ const io = require('socket.io')(server, {
 
 // Middleware
 app.use(express.json())
-app.use(express.urlencoded({extended: true}))
 
 // DB
 const rooms = new Map()
 
 // Routes
+// будет происходить при клике на button
+// после отправки с client socket события ROOM:JOIN
 app.get('/rooms/:id', (req, res) => {
+    // получаем динамический id
     const roomId = req.params.id
-    const obj = {
-        users: [...rooms.get(roomId).get('users').values()],
-        messages: [...rooms.get(roomId).get('messages').values()],
-    }
+    // если в базе есть такая комната
+    // отдать объект с полями users и messages
+    // если комнаты нет поля будут пустыми массивами
+    const obj = rooms.has(roomId)
+        ? {
+            users: [...rooms.get(roomId).get('users').values()],
+            messages: [...rooms.get(roomId).get('messages').values()],
+        }
+        : {
+            users: [],
+            messages: [],
+        }
     res.json(obj)
 })
 app.post('/rooms', (req, res) => {
@@ -43,21 +53,36 @@ app.post('/rooms', (req, res) => {
 // будет создаваться специальный объект для каждого user
 io.on('connection', socket => {
     // наш сокет ждет событие, которое придет с клиета
-    socket.on('ROOM:JOIN', ({roomId ,username}) => {
+    socket.on('ROOM:JOIN', ({ roomId, username }) => {
         // сервер поключит user к выбранной комнате
         socket.join(roomId)
-        rooms.get(roomId).get('users').set(socket.id,username)
+        rooms.get(roomId).get('users').set(socket.id, username)
         const users = [...rooms.get(roomId).get('users').values()]
         // отправить запрос всем user из roomId
         // broadcast кроме меня
         socket.broadcast.to(roomId).emit('ROOM:SET_USERS', users)
     })
 
+    // при появлениии нового message от user
+    // из текущей roomId
+    socket.on('ROOM:NEW_MESSAGE', ({ roomId, username, text }) => {
+        // в BD по id комнаты дать messages
+        // запушить туда новый объект
+        const obj = {
+            username,
+            text
+        }
+        rooms.get(roomId).get('messages').push(obj)
+        // отправить socket запрос всем user из roomId
+        // broadcast кроме меня
+        socket.broadcast.to(roomId).emit('ROOM:NEW_MESSAGE', obj)
+    })
+
     socket.on('disconnect', () => {
         rooms.forEach((value, roomId) => {
             // перебрать все room, в каждой room получить всех user
             // и удалить user по socket.id
-            if(value.get('users').delete(socket.id)) {
+            if (value.get('users').delete(socket.id)) {
                 const users = [...value.get('users').values()]
                 socket.broadcast.to(roomId).emit('ROOM:SET_USERS', users)
             }
